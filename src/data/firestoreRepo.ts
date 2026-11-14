@@ -43,6 +43,7 @@ export function createFirestoreRepo(
   const syncListeners = new Set<(s: SyncStatus) => void>();
   const pending = new Map<string, number>(); // 各集合尚未上傳的文件數
   const loaded = new Set<string>();
+  let error: string | undefined;
   let started = false;
 
   const emit = () => {
@@ -50,7 +51,7 @@ export function createFirestoreRepo(
     listeners.forEach((cb) => cb(latest));
   };
   const emitSync = () => {
-    const s: SyncStatus = { online: navigator.onLine, pendingDocs: [...pending.values()].reduce((a, b) => a + b, 0) };
+    const s: SyncStatus = { online: navigator.onLine, pendingDocs: [...pending.values()].reduce((a, b) => a + b, 0), error };
     syncListeners.forEach((cb) => cb(s));
   };
 
@@ -58,6 +59,13 @@ export function createFirestoreRepo(
     if (started) return;
     started = true;
     const opts: SnapshotListenOptions = { includeMetadataChanges: true };
+    // 讀取失敗時（例如資料庫規則拒絕）仍讓畫面出現，並顯示原因
+    const onError = (name: string) => (e: { code?: string; message: string }) => {
+      error = e.code === 'permission-denied' ? '資料庫拒絕存取（權限不足），請聯絡店長' : `資料庫連線錯誤：${e.message}`;
+      loaded.add(name);
+      emit();
+      emitSync();
+    };
     onSnapshot(collection(db, 'tables'), opts, (snap: QuerySnapshot) => {
       const tables: BarState['tables'] = {};
       snap.forEach((d) => {
@@ -69,7 +77,7 @@ export function createFirestoreRepo(
       loaded.add('tables');
       emit();
       emitSync();
-    });
+    }, onError('tables'));
     for (const col of ['history', 'menu'] as const) {
       onSnapshot(collection(db, col), opts, (snap: QuerySnapshot) => {
         const map: Record<string, unknown> = {};
@@ -79,7 +87,7 @@ export function createFirestoreRepo(
         loaded.add(col);
         emit();
         emitSync();
-      });
+      }, onError(col));
     }
     onSnapshot(collection(db, 'meta'), opts, (snap: QuerySnapshot) => {
       const business = snap.docs.find((d) => d.id === 'business')?.data();
@@ -94,7 +102,7 @@ export function createFirestoreRepo(
       loaded.add('meta');
       emit();
       emitSync();
-    });
+    }, onError('meta'));
     window.addEventListener('online', emitSync);
     window.addEventListener('offline', emitSync);
   }

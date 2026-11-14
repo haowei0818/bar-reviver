@@ -1,10 +1,14 @@
 rules_version = '2';
-// 規格 Q7：不設登入權限。只開放系統使用的四個集合，其他路徑一律拒絕。
+// 規格 Q7：不設登入權限。只開放系統使用的集合，其他路徑一律拒絕。
 service cloud.firestore {
   match /databases/{database}/documents {
     match /tables/{id}  { allow read, write: if true; }
     match /history/{id} { allow read, write: if true; }
     match /menu/{id}    { allow read, write: if true; }
-    match /meta/{id}    { allow read, write: if id in ['business', 'settings']; }
+    // 程式會列出整個 meta 集合，所以讀取要整個開放；寫入只限兩份文件
+    match /meta/{id} {
+      allow read: if true;
+      allow write: if id in ['business', 'settings'];
+    }
   }
 }

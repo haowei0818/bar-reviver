@@ -4,7 +4,7 @@ import type { CategoryId, MenuItem } from '../domain/menu';
 
 export type Sessions = Record<string, TableSession>;
 
-export type SyncStatus = { online: boolean; pendingDocs: number };
+export type SyncStatus = { online: boolean; pendingDocs: number; error?: string };
 
 /** 資料層對外介面：畫面只依賴這些動作 */
 export interface BarRepo {

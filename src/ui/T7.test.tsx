@@ -48,3 +48,12 @@ describe('T7 驗收：離線', () => {
     expect(screen.getByText('離線補傳：這桌在別支手機已清桌，請確認是否為同一組客人')).toBeInTheDocument();
   });
 });
+
+describe('資料庫連線錯誤', () => {
+  it('雲端回報錯誤時顯示原因，而不是空白', () => {
+    const { repo, set } = withFakeSync(createLocalRepo(localStorage));
+    render(<App repo={repo} />);
+    set({ online: true, pendingDocs: 0, error: '資料庫拒絕存取（權限不足）' });
+    expect(screen.getByRole('status', { name: '同步狀態' })).toHaveTextContent('資料庫拒絕存取（權限不足）');
+  });
+});
